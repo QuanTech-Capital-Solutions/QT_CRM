@@ -3,6 +3,7 @@ import { Logo } from '../components/Logo';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthPageProps {
   onBack: () => void;
@@ -57,6 +58,12 @@ export function AuthPage({ onBack }: AuthPageProps) {
               {mode === 'signin' ? 'Sign in to your QT workspace' : 'Start managing your CRM with QT'}
             </p>
           </div>
+
+	{!isSupabaseConfigured && (
+            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-600 	dark:text-rose-400">
+              <strong>Supabase not configured.</strong> Set <code>VITE_SUPABASE_URL</code> and <code>	VITE_SUPABASE_ANON_KEY</code> in your deployment environment, then redeploy.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-600 dark:text-rose-400">
