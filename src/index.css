@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #1D2138;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #E5E8F2;
+    border-radius: 3px;
+  }
+}
+
+/* ── Print styles ─────────────────────────────────────────── */
+@media print {
+  /* Hide every element except the invoice print area */
+  body * {
+    visibility: hidden !important;
+  }
+  #qt-invoice-print,
+  #qt-invoice-print * {
+    visibility: visible !important;
+  }
+  #qt-invoice-print {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150;
+  }
+
+  .card {
+    @apply rounded-lg border;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2.5 rounded-lg border text-sm transition-all duration-150 outline-none;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 flex items-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 flex items-center gap-2 border;
+  }
+}
