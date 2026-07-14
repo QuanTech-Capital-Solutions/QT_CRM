@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Logo } from '../components/Logo';
+import Logo from '../components/fulllogo.png';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -16,7 +16,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode] = useState<'signin' | 'signup'>('signin');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +48,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
       <div className="flex-1 flex items-center justify-center px-6 pb-20">
         <div className="w-full max-w-sm">
           <div className="flex justify-center mb-8">
-            <Logo size="lg" />
+            <img src={Logo} alt="QuanTech logo" className="h-30 w-auto" />
           </div>
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold tracking-tight mb-2">
@@ -59,7 +59,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
             </p>
           </div>
 
-	{!isSupabaseConfigured && (
+	        {!isSupabaseConfigured && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-600 	dark:text-rose-400">
               <strong>Supabase not configured.</strong> Set <code>VITE_SUPABASE_URL</code> and <code>	VITE_SUPABASE_ANON_KEY</code> in your deployment environment, then redeploy.
             </div>
@@ -76,14 +76,13 @@ export function AuthPage({ onBack }: AuthPageProps) {
               <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">
                 Email
               </label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-light-secondary dark:text-dark-secondary" />
+              <div className="relative w-full">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@quantech.io"
-                  className="input-field bg-light-card dark:bg-dark-card border-light-border dark:border-dark-border text-light-text dark:text-dark-text placeholder:text-light-secondary dark:placeholder:text-dark-secondary focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 pl-10"
+                  className="w-full input-field bg-light-card dark:bg-dark-card border-light-border dark:border-dark-border text-light-text dark:text-dark-text placeholder:text-light-secondary dark:placeholder:text-dark-secondary focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 pl-10"
                   required
                 />
               </div>
@@ -94,7 +93,6 @@ export function AuthPage({ onBack }: AuthPageProps) {
                 Password
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-light-secondary dark:text-dark-secondary" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -131,17 +129,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
             </button>
           </form>
 
-          <div className="text-center mt-6">
-            <button
-              onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); }}
-              className="text-sm text-light-secondary dark:text-dark-secondary hover:text-light-text dark:hover:text-dark-text transition-colors"
-            >
-              {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-              <span className="text-violet-600 dark:text-violet-400 font-medium">
-                {mode === 'signin' ? 'Sign up' : 'Sign in'}
-              </span>
-            </button>
-          </div>
+          
 
           <p className="text-center text-xs text-light-secondary dark:text-dark-secondary mt-6">
             QuanTech Capital Solutions — Internal Platform

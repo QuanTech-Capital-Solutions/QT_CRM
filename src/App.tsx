@@ -8,7 +8,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { FinancePage } from './pages/FinancePage';
-import { Logo } from './components/Logo';
+import { AdminProfilePage } from './pages/AdminProfilePage';
+import Logo from './components/fulllogo.png';
 
 type AppState = 'landing' | 'auth' | 'app';
 
@@ -29,7 +30,7 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-light-canvas dark:bg-dark-canvas flex items-center justify-center">
         <div className="animate-pulse">
-          <Logo size="lg" />
+          <img src={Logo} alt="QuanTech logo" className="h-30 w-auto" />
         </div>
       </div>
     );
@@ -54,6 +55,7 @@ function AppContent() {
       {currentPage === 'clients' && <ClientsPage />}
       {currentPage === 'projects' && <ProjectsPage />}
       {currentPage === 'finance' && <FinancePage />}
+      {currentPage === 'admin' && <AdminProfilePage />}
     </AppShell>
   );
 }

@@ -8,6 +8,7 @@ interface InvoiceCreatorProps {
   projects: Project[];
   company: CompanySettings | null;
   invoiceCount: number;
+  editingInvoice?: Invoice | null;
   onClose: () => void;
   onSave: (data: Omit<Invoice, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
   saving: boolean;
@@ -24,20 +25,20 @@ function newLineItem(uid: string): LineItem {
   return { id: uid, description: '', quantity: 1, unit_price: 0 };
 }
 
-export function InvoiceCreator({ clients, projects, company, invoiceCount, onClose, onSave, saving }: InvoiceCreatorProps) {
+export function InvoiceCreator({ clients, projects, company, invoiceCount, editingInvoice, onClose, onSave, saving }: InvoiceCreatorProps) {
   const uid = useId();
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
 
-  const [invoiceNumber, setInvoiceNumber] = useState(`QT-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(3, '0')}`);
-  const [invoiceDate, setInvoiceDate] = useState(today());
-  const [dueDate, setDueDate] = useState(thirtyDaysOut());
-  const [clientName, setClientName] = useState('');
-  const [projectName, setProjectName] = useState('');
-  const [status, setStatus] = useState<InvoiceStatus>('Draft');
-  const [includeVat, setIncludeVat] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<LineItem[]>([newLineItem(`${uid}-0`)]);
-  const [counter, setCounter] = useState(1);
+  const [invoiceNumber, setInvoiceNumber] = useState(editingInvoice?.invoice_number ?? `QT-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(3, '0')}`);
+  const [invoiceDate, setInvoiceDate] = useState(editingInvoice?.invoice_date ?? today());
+  const [dueDate, setDueDate] = useState(editingInvoice?.due_date ?? thirtyDaysOut());
+  const [clientName, setClientName] = useState(editingInvoice?.client_name ?? '');
+  const [projectName, setProjectName] = useState(editingInvoice?.project_name ?? '');
+  const [status, setStatus] = useState<InvoiceStatus>(editingInvoice?.status ?? 'Draft');
+  const [includeVat, setIncludeVat] = useState(editingInvoice?.include_vat ?? false);
+  const [notes, setNotes] = useState(editingInvoice?.notes ?? '');
+  const [items, setItems] = useState<LineItem[]>(editingInvoice?.line_items ?? [newLineItem(`${uid}-0`)]);
+  const [counter, setCounter] = useState(editingInvoice?.line_items?.length ?? 1);
 
   const addItem = () => {
     setItems((prev) => [...prev, newLineItem(`${uid}-${counter}`)]);
@@ -151,22 +152,40 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, onClo
 
         <div className="space-y-2">
           {/* Header */}
-          <div className="grid gap-2 text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
+          <div className="text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
             <span>Description</span>
-            <span className="text-center">Qty</span>
-            <span className="text-right">Unit Price (R)</span>
-            <span className="text-right">Amount</span>
-            <span></span>
           </div>
 
           {items.map((item, idx) => (
-            <div key={item.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
+            <div key={item.id} className="flex flex-col gap-1.5" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
               <input
                 className={inputCls}
                 placeholder={`Item ${idx + 1} description`}
                 value={item.description}
                 onChange={(e) => updateItem(item.id, 'description', e.target.value)}
               />
+            </div>
+            ))
+          }
+
+          <div className="grid gap-1 items-end text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
+            {/*<span>Description</span>*/}
+            <span className="text-center">Qty</span>
+            <span className="text-right">Unit Price (R)</span>
+            <span className="text-right">Amount</span>
+            <span></span>
+          </div>
+
+          {/*{items.map((item, idx) => ( - original code*/}
+          {items.map((item) => (
+            <div key={item.id} className="grid gap-1 items-center" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
+              {/*<input
+                className={inputCls}
+                placeholder={`Item ${idx + 1} description`}
+                value={item.description}
+                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+              />*/}
+              
               <input
                 type="number"
                 min="0.01"
@@ -175,6 +194,7 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, onClo
                 value={item.quantity}
                 onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
               />
+
               <input
                 type="number"
                 min="0"
@@ -186,6 +206,7 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, onClo
               <div className={`${inputCls} text-right bg-light-canvas/50 dark:bg-dark-canvas/50 text-light-secondary dark:text-dark-secondary cursor-default`}>
                 {formatCurrency(item.quantity * item.unit_price)}
               </div>
+
               <button
                 type="button"
                 onClick={() => items.length > 1 ? removeItem(item.id) : undefined}
@@ -283,7 +304,7 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, onClo
             <span className="hidden sm:inline">Back to Finance</span>
           </button>
           <div className="hidden sm:block w-px h-5 bg-light-border dark:bg-dark-border" />
-          <h1 className="text-base font-bold">New Invoice</h1>
+          <h1 className="text-base font-bold">{editingInvoice ? 'Edit Invoice' : 'New Invoice'}</h1>
         </div>
 
         {/* Mobile tab toggle */}

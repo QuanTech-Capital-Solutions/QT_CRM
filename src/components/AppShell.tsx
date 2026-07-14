@@ -1,9 +1,9 @@
 import { type ReactNode } from 'react';
-import { Logo } from './Logo';
+import Logo from "./logotext.png";
 import { ThemeToggle } from './ThemeToggle';
-import { LayoutDashboard, Users, Briefcase, Wallet, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Wallet, LogOut, Shield } from 'lucide-react';
 
-export type PageId = 'dashboard' | 'clients' | 'projects' | 'finance';
+export type PageId = 'dashboard' | 'clients' | 'projects' | 'finance' | 'admin';
 
 interface AppShellProps {
   currentPage: PageId;
@@ -18,6 +18,7 @@ const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = 
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'projects', label: 'Projects', icon: Briefcase },
   { id: 'finance', label: 'Finance', icon: Wallet },
+  { id: 'admin', label: 'Admin', icon: Shield },
 ];
 
 export function AppShell({ currentPage, onNavigate, onSignOut, userEmail, children }: AppShellProps) {
@@ -28,7 +29,7 @@ export function AppShell({ currentPage, onNavigate, onSignOut, userEmail, childr
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-60 border-r border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card fixed h-screen">
         <div className="h-16 flex items-center px-5 border-b border-light-border dark:border-dark-border">
-          <Logo size="md" />
+          <img src={Logo} alt="Logo" />
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
@@ -73,7 +74,7 @@ export function AppShell({ currentPage, onNavigate, onSignOut, userEmail, childr
       <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
         {/* Mobile header */}
         <header className="md:hidden h-14 flex items-center justify-between px-4 border-b border-light-border dark:border-dark-border bg-light-card/80 dark:bg-dark-card/80 backdrop-blur-md sticky top-0 z-40">
-          <Logo size="sm" />
+          <img src={Logo} alt="QuanTech logo" className="h-20 w-auto" />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <button
@@ -88,7 +89,7 @@ export function AppShell({ currentPage, onNavigate, onSignOut, userEmail, childr
         {/* Desktop header */}
         <header className="hidden md:flex h-16 items-center justify-between px-8 border-b border-light-border dark:border-dark-border bg-light-card/60 dark:bg-dark-card/60 backdrop-blur-md sticky top-0 z-40">
           <div className="flex items-center gap-2 text-sm text-light-secondary dark:text-dark-secondary">
-            <Menu size={16} />
+            {/*<Menu size={16} />   - Removed cause it doesnt look neat*/}
             <span className="font-medium capitalize">{navItems.find((n) => n.id === currentPage)?.label}</span>
           </div>
           <ThemeToggle />

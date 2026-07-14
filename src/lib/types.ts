@@ -93,3 +93,14 @@ export const calcInvoiceTotals = (items: LineItem[], includeVat: boolean) => {
   const total = subtotal + vat;
   return { subtotal, vat, total };
 };
+
+export interface AdminProfile {
+  id: string;
+  full_name: string;
+  title: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+  updated_at: string;
+}

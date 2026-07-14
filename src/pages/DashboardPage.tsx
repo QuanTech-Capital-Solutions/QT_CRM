@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Briefcase, FileText, DollarSign, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Circle } from 'lucide-react';
+import { Users, Briefcase, FileText, Wallet, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate, type Client, type Project, type Invoice, type LedgerEntry } from '../lib/types';
 
@@ -51,7 +51,7 @@ export function DashboardPage() {
     { label: 'Active Clients', value: activeClients.toString(), icon: Users, change: `${clients.length} total`, positive: true },
     { label: 'Current Projects', value: activeProjects.toString(), icon: Briefcase, change: `${projects.length} total`, positive: true },
     { label: 'Outstanding Invoices', value: formatCurrency(outstandingTotal), icon: FileText, change: `${outstandingInvoices.length} pending`, positive: false },
-    { label: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign, change: 'All-time', positive: true },
+    { label: 'Total Revenue', value: formatCurrency(totalRevenue), icon: Wallet, change: 'All-time', positive: true },
   ];
 
   const recentActivity = ledger.slice(0, 5);

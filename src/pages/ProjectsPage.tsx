@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Briefcase, Calendar, DollarSign, User } from 'lucide-react';
+import { Plus, X, Briefcase, Calendar, DollarSign, User, ArrowLeft, Pencil, Trash2, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatCurrency, type Project, type Client, type ProjectStatus } from '../lib/types';
+import { formatCurrency, formatDate, type Project, type Client, type ProjectStatus } from '../lib/types';
 
 const statusColors: Record<ProjectStatus, string> = {
   Scoping: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -22,8 +22,11 @@ export function ProjectsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [view, setView] = useState<'board' | 'list'>('board');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
@@ -51,6 +54,40 @@ export function ProjectsPage() {
       setShowModal(false);
       fetchProjects();
     }
+  };
+
+  const handleUpdate = async (formData: Record<string, string>) => {
+    if (!editingProject) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('projects').update({
+      name: formData.name,
+      description: formData.description || null,
+      client_name: formData.client_name,
+      status: formData.status || 'Scoping',
+      cost_estimate: Number(formData.cost_estimate) || 0,
+      timeline: formData.timeline || null,
+    }).eq('id', editingProject.id);
+    setSubmitting(false);
+    if (!error) {
+      setShowModal(false);
+      setEditingProject(null);
+      fetchProjects();
+    }
+  };
+
+  const handleDelete = async (project: Project) => {
+    const { error } = await supabase.from('projects').delete().eq('id', project.id);
+    if (!error) {
+      setConfirmDelete(null);
+      setSelectedProject(null);
+      fetchProjects();
+    }
+  };
+
+  const openEdit = (project: Project) => {
+    setEditingProject(project);
+    setSelectedProject(null);
+    setShowModal(true);
   };
 
   if (loading) {
@@ -87,7 +124,7 @@ export function ProjectsPage() {
             </button>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { setEditingProject(null); setShowModal(true); }}
             className="btn-primary bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-600/20"
           >
             <Plus size={16} />
@@ -96,7 +133,73 @@ export function ProjectsPage() {
         </div>
       </div>
 
-      {view === 'board' ? (
+      {/* Detail view */}
+      {selectedProject ? (
+        <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="flex items-center gap-2 text-sm text-light-secondary dark:text-dark-secondary hover:text-light-text dark:hover:text-dark-text transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Back to projects
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openEdit(selectedProject)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                <Pencil size={13} />
+                Edit
+              </button>
+              <button
+                onClick={() => setConfirmDelete(selectedProject)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+            </div>
+          </div>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                <Briefcase size={24} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{selectedProject.name}</h2>
+                <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full border mt-1 ${statusColors[selectedProject.status]}`}>
+                  {selectedProject.status}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <User size={16} className="text-light-secondary dark:text-dark-secondary" />
+              <span className="text-sm">{selectedProject.client_name}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Calendar size={16} className="text-light-secondary dark:text-dark-secondary" />
+              <span className="text-sm">{selectedProject.timeline || 'No timeline'}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <DollarSign size={16} className="text-violet-600 dark:text-violet-400" />
+              <span className="text-sm font-medium">{formatCurrency(selectedProject.cost_estimate)}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <FileText size={16} className="text-light-secondary dark:text-dark-secondary" />
+              <span className="text-sm text-light-secondary dark:text-dark-secondary">Created {formatDate(selectedProject.created_at)}</span>
+            </div>
+          </div>
+          {selectedProject.description && (
+            <div className="p-4 rounded-lg bg-light-canvas dark:bg-dark-canvas border border-light-border dark:border-dark-border">
+              <div className="text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1">Description</div>
+              <p className="text-sm">{selectedProject.description}</p>
+            </div>
+          )}
+        </div>
+      ) : view === 'board' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {columns.map((col) => {
             const colProjects = projects.filter((p) => p.status === col.status);
@@ -111,8 +214,28 @@ export function ProjectsPage() {
                 </div>
                 <div className="space-y-3">
                   {colProjects.map((p) => (
-                    <div key={p.id} className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-4 hover:border-violet-500/30 transition-colors cursor-pointer">
-                      <div className="text-sm font-semibold mb-1">{p.name}</div>
+                    <div
+                      key={p.id}
+                      onClick={() => setSelectedProject(p)}
+                      className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-4 hover:border-violet-500/30 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <div className="text-sm font-semibold">{p.name}</div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(p); }}
+                            className="p-1 rounded text-light-secondary dark:text-dark-secondary hover:text-violet-600 dark:hover:text-violet-400"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(p); }}
+                            className="p-1 rounded text-light-secondary dark:text-dark-secondary hover:text-rose-600 dark:hover:text-rose-400"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                       <div className="text-xs text-light-secondary dark:text-dark-secondary mb-3 line-clamp-2">{p.description || 'No description'}</div>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 text-xs text-light-secondary dark:text-dark-secondary">
@@ -151,12 +274,13 @@ export function ProjectsPage() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary hidden lg:table-cell">Timeline</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Estimate</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {projects.map((p) => (
                   <tr key={p.id} className="border-b border-light-border dark:border-dark-border last:border-0 hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedProject(p)}>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
                           <Briefcase size={16} className="text-violet-600 dark:text-violet-400" />
@@ -167,11 +291,29 @@ export function ProjectsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm hidden md:table-cell">{p.client_name}</td>
-                    <td className="px-4 py-3 text-sm hidden lg:table-cell text-light-secondary dark:text-dark-secondary">{p.timeline || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{formatCurrency(p.cost_estimate)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-sm hidden md:table-cell cursor-pointer" onClick={() => setSelectedProject(p)}>{p.client_name}</td>
+                    <td className="px-4 py-3 text-sm hidden lg:table-cell text-light-secondary dark:text-dark-secondary cursor-pointer" onClick={() => setSelectedProject(p)}>{p.timeline || '—'}</td>
+                    <td className="px-4 py-3 text-sm font-medium cursor-pointer" onClick={() => setSelectedProject(p)}>{formatCurrency(p.cost_estimate)}</td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedProject(p)}>
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${statusColors[p.status]}`}>{p.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(p); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline"
+                        >
+                          <Pencil size={12} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(p); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+                        >
+                          <Trash2 size={12} />
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -186,24 +328,56 @@ export function ProjectsPage() {
 
       {showModal && (
         <ProjectForm
+          project={editingProject}
           clients={clients}
-          onClose={() => setShowModal(false)}
-          onSubmit={handleCreate}
+          onClose={() => { setShowModal(false); setEditingProject(null); }}
+          onSubmit={editingProject ? handleUpdate : handleCreate}
           submitting={submitting}
+        />
+      )}
+
+      {confirmDelete && (
+        <DeleteConfirm
+          project={confirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => handleDelete(confirmDelete)}
         />
       )}
     </div>
   );
 }
 
-function ProjectForm({ clients, onClose, onSubmit, submitting }: { clients: Client[]; onClose: () => void; onSubmit: (data: Record<string, string>) => void; submitting: boolean }) {
+function DeleteConfirm({ project, onCancel, onConfirm }: { project: Project; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onCancel} />
+      <div className="relative w-full max-w-sm bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-xl shadow-2xl p-6 animate-scale-in">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
+            <Trash2 size={20} className="text-rose-600 dark:text-rose-400" />
+          </div>
+          <h2 className="text-lg font-bold">Delete Project</h2>
+        </div>
+        <p className="text-sm text-light-secondary dark:text-dark-secondary mb-6">
+          Are you sure you want to delete <strong className="text-light-text dark:text-dark-text">{project.name}</strong>? This action cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="btn-secondary flex-1 justify-center border-light-border dark:border-dark-border hover:bg-light-canvas dark:hover:bg-dark-canvas">Cancel</button>
+          <button onClick={onConfirm} className="btn-primary flex-1 justify-center bg-rose-600 text-white hover:bg-rose-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectForm({ project, clients, onClose, onSubmit, submitting }: { project: Project | null; clients: Client[]; onClose: () => void; onSubmit: (data: Record<string, string>) => void; submitting: boolean }) {
   const [form, setForm] = useState({
-    name: '',
-    description: '',
-    client_name: '',
-    status: 'Scoping' as ProjectStatus,
-    cost_estimate: '',
-    timeline: '',
+    name: project?.name ?? '',
+    description: project?.description ?? '',
+    client_name: project?.client_name ?? '',
+    status: project?.status ?? 'Scoping' as ProjectStatus,
+    cost_estimate: project?.cost_estimate?.toString() ?? '',
+    timeline: project?.timeline ?? '',
   });
 
   return (
@@ -211,7 +385,7 @@ function ProjectForm({ clients, onClose, onSubmit, submitting }: { clients: Clie
       <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-xl shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-light-border dark:border-dark-border sticky top-0 bg-light-card dark:bg-dark-card">
-          <h2 className="text-lg font-bold">Create Project</h2>
+          <h2 className="text-lg font-bold">{project ? 'Edit Project' : 'Create Project'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors">
             <X size={18} />
           </button>
@@ -256,7 +430,7 @@ function ProjectForm({ clients, onClose, onSubmit, submitting }: { clients: Clie
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center border-light-border dark:border-dark-border hover:bg-light-canvas dark:hover:bg-dark-canvas">Cancel</button>
             <button type="submit" disabled={submitting} className="btn-primary flex-1 justify-center bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-60">
-              {submitting ? 'Creating...' : 'Create Project'}
+              {submitting ? 'Saving...' : project ? 'Save Changes' : 'Create Project'}
             </button>
           </div>
         </form>

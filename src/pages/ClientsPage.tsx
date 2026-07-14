@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Search, ChevronDown, ChevronUp, Mail, Phone, Building2, ArrowLeft, Briefcase } from 'lucide-react';
+import { Plus, X, Search, ChevronDown, ChevronUp, Mail, Phone, Building2, ArrowLeft, Briefcase, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate, type Client, type Project, type ClientStatus } from '../lib/types';
 
@@ -19,8 +19,10 @@ export function ClientsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('company_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Client | null>(null);
 
   const fetchClients = async () => {
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
@@ -81,6 +83,40 @@ export function ClientsPage() {
     }
   };
 
+  const handleUpdate = async (formData: Record<string, string>) => {
+    if (!editingClient) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('clients').update({
+      company_name: formData.company_name,
+      primary_contact: formData.primary_contact,
+      email: formData.email,
+      phone: formData.phone || null,
+      status: formData.status || 'Prospect',
+      notes: formData.notes || null,
+    }).eq('id', editingClient.id);
+    setSubmitting(false);
+    if (!error) {
+      setEditingClient(null);
+      setShowForm(false);
+      fetchClients();
+    }
+  };
+
+  const handleDelete = async (client: Client) => {
+    const { error } = await supabase.from('clients').delete().eq('id', client.id);
+    if (!error) {
+      setConfirmDelete(null);
+      setSelectedClient(null);
+      fetchClients();
+    }
+  };
+
+  const openEdit = (client: Client) => {
+    setEditingClient(client);
+    setSelectedClient(null);
+    setShowForm(true);
+  };
+
   return (
     <div className="max-w-6xl">
       {/* Header */}
@@ -92,7 +128,7 @@ export function ClientsPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditingClient(null); setShowForm(true); }}
           className="btn-primary bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-600/20"
         >
           <Plus size={16} />
@@ -115,13 +151,31 @@ export function ClientsPage() {
         <div className="text-center py-20 text-sm text-light-secondary dark:text-dark-secondary">Loading clients...</div>
       ) : selectedClient ? (
         <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-6 animate-fade-in">
-          <button
-            onClick={() => setSelectedClient(null)}
-            className="flex items-center gap-2 text-sm text-light-secondary dark:text-dark-secondary hover:text-light-text dark:hover:text-dark-text mb-4 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to clients
-          </button>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setSelectedClient(null)}
+              className="flex items-center gap-2 text-sm text-light-secondary dark:text-dark-secondary hover:text-light-text dark:hover:text-dark-text transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Back to clients
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openEdit(selectedClient)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                <Pencil size={13} />
+                Edit
+              </button>
+              <button
+                onClick={() => setConfirmDelete(selectedClient)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+            </div>
+          </div>
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-violet-500/10 flex items-center justify-center">
@@ -191,16 +245,16 @@ export function ClientsPage() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary hidden md:table-cell cursor-pointer hover:text-light-text dark:hover:text-dark-text" onClick={() => handleSort('created_at')}>
                     <span className="flex items-center gap-1">Created <SortIcon col="created_at" /></span>
                   </th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => setSelectedClient(c)}
-                    className="border-b border-light-border dark:border-dark-border last:border-0 cursor-pointer hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors"
+                    className="border-b border-light-border dark:border-dark-border last:border-0 hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors"
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedClient(c)}>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
                           <Building2 size={16} className="text-violet-600 dark:text-violet-400" />
@@ -208,15 +262,33 @@ export function ClientsPage() {
                         <span className="text-sm font-medium">{c.company_name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{c.primary_contact}</td>
-                    <td className="px-4 py-3 text-sm hidden md:table-cell text-light-secondary dark:text-dark-secondary">{c.email}</td>
+                    <td className="px-4 py-3 text-sm cursor-pointer" onClick={() => setSelectedClient(c)}>{c.primary_contact}</td>
+                    <td className="px-4 py-3 text-sm hidden md:table-cell text-light-secondary dark:text-dark-secondary cursor-pointer" onClick={() => setSelectedClient(c)}>{c.email}</td>
                     <td className="px-4 py-3 text-sm hidden lg:table-cell text-light-secondary dark:text-dark-secondary">{c.phone || '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => setSelectedClient(c)}>
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[c.status]}`}>
                         {c.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm hidden md:table-cell text-light-secondary dark:text-dark-secondary">{formatDate(c.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:underline"
+                        >
+                          <Pencil size={12} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(c); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline"
+                        >
+                          <Trash2 size={12} />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -233,23 +305,56 @@ export function ClientsPage() {
       {/* Slide-in form */}
       {showForm && (
         <ClientForm
-          onClose={() => setShowForm(false)}
-          onSubmit={handleCreate}
+          client={editingClient}
+          onClose={() => { setShowForm(false); setEditingClient(null); }}
+          onSubmit={editingClient ? handleUpdate : handleCreate}
           submitting={submitting}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <DeleteConfirm
+          client={confirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => handleDelete(confirmDelete)}
         />
       )}
     </div>
   );
 }
 
-function ClientForm({ onClose, onSubmit, submitting }: { onClose: () => void; onSubmit: (data: Record<string, string>) => void; submitting: boolean }) {
+function DeleteConfirm({ client, onCancel, onConfirm }: { client: Client; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onCancel} />
+      <div className="relative w-full max-w-sm bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-xl shadow-2xl p-6 animate-scale-in">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
+            <Trash2 size={20} className="text-rose-600 dark:text-rose-400" />
+          </div>
+          <h2 className="text-lg font-bold">Delete Client</h2>
+        </div>
+        <p className="text-sm text-light-secondary dark:text-dark-secondary mb-6">
+          Are you sure you want to delete <strong className="text-light-text dark:text-dark-text">{client.company_name}</strong>? This action cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="btn-secondary flex-1 justify-center border-light-border dark:border-dark-border hover:bg-light-canvas dark:hover:bg-dark-canvas">Cancel</button>
+          <button onClick={onConfirm} className="btn-primary flex-1 justify-center bg-rose-600 text-white hover:bg-rose-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientForm({ client, onClose, onSubmit, submitting }: { client: Client | null; onClose: () => void; onSubmit: (data: Record<string, string>) => void; submitting: boolean }) {
   const [form, setForm] = useState({
-    company_name: '',
-    primary_contact: '',
-    email: '',
-    phone: '',
-    status: 'Prospect' as ClientStatus,
-    notes: '',
+    company_name: client?.company_name ?? '',
+    primary_contact: client?.primary_contact ?? '',
+    email: client?.email ?? '',
+    phone: client?.phone ?? '',
+    status: client?.status ?? 'Prospect' as ClientStatus,
+    notes: client?.notes ?? '',
   });
 
   return (
@@ -257,7 +362,7 @@ function ClientForm({ onClose, onSubmit, submitting }: { onClose: () => void; on
       <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
       <div className="relative w-full max-w-md bg-light-card dark:bg-dark-card border-l border-light-border dark:border-dark-border h-full overflow-y-auto animate-slide-in">
         <div className="flex items-center justify-between p-6 border-b border-light-border dark:border-dark-border sticky top-0 bg-light-card dark:bg-dark-card">
-          <h2 className="text-lg font-bold">New Client</h2>
+          <h2 className="text-lg font-bold">{client ? 'Edit Client' : 'New Client'}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors">
             <X size={18} />
           </button>
@@ -294,7 +399,7 @@ function ClientForm({ onClose, onSubmit, submitting }: { onClose: () => void; on
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center border-light-border dark:border-dark-border hover:bg-light-canvas dark:hover:bg-dark-canvas">Cancel</button>
             <button type="submit" disabled={submitting} className="btn-primary flex-1 justify-center bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-60">
-              {submitting ? 'Creating...' : 'Create Client'}
+              {submitting ? 'Saving...' : client ? 'Save Changes' : 'Create Client'}
             </button>
           </div>
         </form>
