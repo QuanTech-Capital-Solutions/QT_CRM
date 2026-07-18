@@ -151,32 +151,92 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, editi
         </div>
 
         <div className="space-y-2">
-          {/* Header */}
-          <div className="text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
-            <span>Description</span>
-          </div>
-
           {items.map((item, idx) => (
-            <div key={item.id} className="flex flex-col gap-1.5" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
-              <input
-                className={inputCls}
-                placeholder={`Item ${idx + 1} description`}
-                value={item.description}
-                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-              />
-            </div>
-            ))
-          }
+            <div key={item.id} className="space-y-2">
+              {/* 1. Description Field (Full Width Above) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-light-secondary dark:text-dark-secondary px-1">
+                  Item {idx + 1} Description
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder={`Enter description for item ${idx + 1}`}
+                  value={item.description}
+                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                />
+              </div>
 
-          <div className="grid gap-1 items-end text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
-            {/*<span>Description</span>*/}
+              {/* 2. Numeric Inputs and Actions (Aligned Below) */}
+              <div 
+                className="grid gap-2 items-end" 
+                style={{ gridTemplateColumns: '70px 120px 120px 32px' }}
+              >
+                {/* Qty */}
+                <div className="space-y-1">
+                  <span className="block text-[10px] font-medium text-light-secondary dark:text-dark-secondary text-center">
+                    Qty
+                  </span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    className={`${inputCls} text-center`}
+                    value={item.quantity}
+                    onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                {/* Unit Price */}
+                <div className="space-y-1">
+                  <span className="block text-[10px] font-medium text-light-secondary dark:text-dark-secondary text-right">
+                    Unit Price (R)
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={`${inputCls} text-right`}
+                    value={item.unit_price}
+                    onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                {/* Amount */}
+                <div className="space-y-1">
+                  <span className="block text-[10px] font-medium text-light-secondary dark:text-dark-secondary text-right">
+                    Amount
+                  </span>
+                  <div className={`${inputCls} text-right bg-light-canvas/50 dark:bg-dark-canvas/50 text-light-secondary dark:text-dark-secondary cursor-default flex items-center justify-end h-[38px]`}>
+                    {formatCurrency(item.quantity * item.unit_price)}
+                  </div>
+                </div>
+
+                {/* Delete Button Container */}
+                <div className="flex justify-center pb-2">
+                  <button
+                    type="button"
+                    onClick={() => items.length > 1 ? removeItem(item.id) : undefined}
+                    disabled={items.length === 1}
+                    className="p-1.5 rounded-lg text-light-secondary dark:text-dark-secondary hover:text-rose-500 hover:bg-rose-500/10 transition-colors disabled:opacity-30"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+            </div>
+          </div>
+          ))}   
+        </div>
+
+          {/* 
+          div className="grid gap-1 items-end text-xs font-medium text-light-secondary dark:text-dark-secondary px-1" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
+            {/*<span>Description</span>
             <span className="text-center">Qty</span>
             <span className="text-right">Unit Price (R)</span>
             <span className="text-right">Amount</span>
             <span></span>
-          </div>
+          </div>>
 
-          {/*{items.map((item, idx) => ( - original code*/}
+          {items.map((item, idx) => ( 
           {items.map((item) => (
             <div key={item.id} className="grid gap-1 items-center" style={{ gridTemplateColumns: '1fr 70px 120px 120px 32px' }}>
               {/*<input
@@ -184,7 +244,7 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, editi
                 placeholder={`Item ${idx + 1} description`}
                 value={item.description}
                 onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-              />*/}
+              /
               
               <input
                 type="number"
@@ -205,7 +265,7 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, editi
               />
               <div className={`${inputCls} text-right bg-light-canvas/50 dark:bg-dark-canvas/50 text-light-secondary dark:text-dark-secondary cursor-default`}>
                 {formatCurrency(item.quantity * item.unit_price)}
-              </div>
+              </div>>
 
               <button
                 type="button"
@@ -216,8 +276,8 @@ export function InvoiceCreator({ clients, projects, company, invoiceCount, editi
                 <Trash2 size={14} />
               </button>
             </div>
-          ))}
-        </div>
+          ))}   
+        </div> */}
 
         {/* Totals summary */}
         <div className="mt-4 p-4 rounded-lg bg-light-canvas dark:bg-dark-canvas border border-light-border dark:border-dark-border space-y-2">
