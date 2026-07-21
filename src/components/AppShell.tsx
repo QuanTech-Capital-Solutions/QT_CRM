@@ -1,9 +1,9 @@
 import { type ReactNode } from 'react';
 import Logo from "./logotext.png";
 import { ThemeToggle } from './ThemeToggle';
-import { LayoutDashboard, Users, Briefcase, Wallet, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Wallet, LogOut, Shield, LineChart } from 'lucide-react';
 
-export type PageId = 'dashboard' | 'clients' | 'projects' | 'finance' | 'admin';
+export type PageId = 'dashboard' | 'clients' | 'projects' | 'finance' | 'trading' | 'admin';
 
 interface AppShellProps {
   currentPage: PageId;
@@ -18,6 +18,7 @@ const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = 
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'projects', label: 'Projects', icon: Briefcase },
   { id: 'finance', label: 'Finance', icon: Wallet },
+  { id: 'trading', label: 'Trading', icon: LineChart },
   { id: 'admin', label: 'Admin', icon: Shield },
 ];
 
