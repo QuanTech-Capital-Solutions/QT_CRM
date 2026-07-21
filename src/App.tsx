@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { FinancePage } from './pages/FinancePage';
+import { TradingPage } from './pages/TradingPage';
 import { AdminProfilePage } from './pages/AdminProfilePage';
 import Logo from './components/fulllogo.png';
 
@@ -55,6 +56,7 @@ function AppContent() {
       {currentPage === 'clients' && <ClientsPage />}
       {currentPage === 'projects' && <ProjectsPage />}
       {currentPage === 'finance' && <FinancePage />}
+      {currentPage === 'trading' && <TradingPage />}
       {currentPage === 'admin' && <AdminProfilePage />}
     </AppShell>
   );
