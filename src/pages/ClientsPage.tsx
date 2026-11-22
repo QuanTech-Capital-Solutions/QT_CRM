@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Search, ChevronDown, ChevronUp, Mail, Phone, Building2, ArrowLeft, Briefcase, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronUp, Mail, Phone, Building2, ArrowLeft, Briefcase, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate, type Client, type Project, type ClientStatus } from '../lib/types';
 
@@ -142,7 +142,6 @@ export function ClientsPage({ onOpenProject }: ClientsPageProps) {
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-light-secondary dark:text-dark-secondary" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
