@@ -24,9 +24,23 @@ export interface PortfolioMetrics {
   streakType: 'win' | 'loss' | 'none';
 }
 
+export function calcAccountCurrentBalance(account: TradingAccount, trades: Trade[]): number {
+  const realizedPnl = trades
+    .filter((t) => t.account_id === account.id && t.status !== 'Open')
+    .reduce((sum, t) => sum + (t.pnl || 0), 0);
+  return (account.starting_balance || 0) + realizedPnl;
+}
+
 export function calcPortfolioMetrics(trades: Trade[], accounts: TradingAccount[]): PortfolioMetrics {
-  const totalBalance = accounts.reduce((s, a) => s + (a.current_balance || 0), 0);
-  const totalStarting = accounts.reduce((s, a) => s + (a.starting_balance || 0), 0);
+  const activeAccounts = accounts.filter((a) => a.status !== 'Closed');
+
+  const totalBalance = activeAccounts.reduce((s, a) => {
+    const realizedPnl = trades
+      .filter((t) => t.account_id === a.id && t.status !== 'Open')
+      .reduce((sum, t) => sum + (t.pnl || 0), 0);
+    return s + (a.starting_balance || 0) + realizedPnl;
+  }, 0);
+  const totalStarting = activeAccounts.reduce((s, a) => s + (a.starting_balance || 0), 0);
   const totalPnl = totalBalance - totalStarting;
   const totalPnlPct = totalStarting > 0 ? (totalPnl / totalStarting) * 100 : 0;
 
@@ -107,7 +121,8 @@ export function calcAccountMetrics(account: TradingAccount, trades: Trade[]): Ac
   const closed = acctTrades.filter((t) => t.status !== 'Open');
   const wins = closed.filter((t) => t.status === 'Win');
   const losses = closed.filter((t) => t.status === 'Loss');
-  const pnl = (account.current_balance || 0) - (account.starting_balance || 0);
+  const realizedPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const pnl = realizedPnl;
   const pnlPct = account.starting_balance > 0 ? (pnl / account.starting_balance) * 100 : 0;
 
   return {
@@ -121,13 +136,22 @@ export function calcAccountMetrics(account: TradingAccount, trades: Trade[]): Ac
   };
 }
 
+export function currencySymbol(currency: string): string {
+  return currency === 'ZAR' ? 'R' : '$';
+}
+
+export function formatCurrencyByCode(amount: number, currency: string): string {
+  const symbol = currencySymbol(currency);
+  return `${symbol}${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}`;
+}
+
 export function formatPnl(value: number, currency = 'USD'): string {
-  const symbol = currency === 'ZAR' ? 'R' : '$';
+  const symbol = currencySymbol(currency);
   return `${value >= 0 ? '+' : ''}${symbol}${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function formatPnlShort(value: number, currency = 'USD'): string {
-  const symbol = currency === 'ZAR' ? 'R' : '$';
+  const symbol = currencySymbol(currency);
   const abs = Math.abs(value);
   const formatted = abs >= 1000 ? abs.toLocaleString('en-US', { maximumFractionDigits: 0 }) : abs.toFixed(2);
   return `${value >= 0 ? '+' : '-'}${symbol}${formatted}`;

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Plus, X, Wallet, Pencil, Trash2, Building2, TrendingUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { formatCurrency, type TradingAccount, type AccountStatus } from '../../lib/types';
-import { calcAccountMetrics, formatPct } from '../../lib/tradingUtils';
+import { type TradingAccount, type AccountStatus } from '../../lib/types';
+import { calcAccountMetrics, calcAccountCurrentBalance, formatPct, formatCurrencyByCode } from '../../lib/tradingUtils';
 import type { Trade } from '../../lib/types';
 
 interface AccountsManagerProps {
@@ -33,7 +33,6 @@ export function AccountsManager({ accounts, trades, onRefresh, selectedAccountId
       account_number: (data.account_number as string) || null,
       currency: (data.currency as string) || 'USD',
       starting_balance: Number(data.starting_balance) || 0,
-      current_balance: Number(data.current_balance) || 0,
       is_prop: !!data.is_prop,
       status: (data.status as AccountStatus) || 'Active',
       notes: (data.notes as string) || null,
@@ -68,7 +67,7 @@ export function AccountsManager({ accounts, trades, onRefresh, selectedAccountId
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Trading Accounts</h1>
           <p className="text-sm text-light-secondary dark:text-dark-secondary mt-1">
-            {accounts.length} accounts · {accounts.filter((a) => a.is_prop).length} prop firm
+            {accounts.length} accounts · {accounts.filter((a) => a.status !== 'Closed').length} active
           </p>
         </div>
         <button
@@ -102,10 +101,11 @@ export function AccountsManager({ accounts, trades, onRefresh, selectedAccountId
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAccounts.map((acct) => {
             const am = calcAccountMetrics(acct, trades);
+            const computedBalance = calcAccountCurrentBalance(acct, trades);
             return (
               <div
                 key={acct.id}
-                className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-5 hover:border-violet-500/30 transition-colors"
+                className={`card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-5 hover:border-violet-500/30 transition-colors ${acct.status === 'Closed' ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -126,8 +126,8 @@ export function AccountsManager({ accounts, trades, onRefresh, selectedAccountId
 
                 <div className="space-y-3 mb-4">
                   <div>
-                    <div className="text-xs text-light-secondary dark:text-dark-secondary">Current Balance</div>
-                    <div className="text-2xl font-bold">{formatCurrency(acct.current_balance)}</div>
+                    <div className="text-xs text-light-secondary dark:text-dark-secondary">Current Balance <span className="text-[10px]">(auto-calculated)</span></div>
+                    <div className="text-2xl font-bold">{formatCurrencyByCode(computedBalance, acct.currency)}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-light-border dark:border-dark-border">
                     <div>
@@ -232,7 +232,6 @@ function AccountForm({ account, onClose, onSave, submitting }: {
     account_number: account?.account_number ?? '',
     currency: account?.currency ?? 'USD',
     starting_balance: account?.starting_balance?.toString() ?? '',
-    current_balance: account?.current_balance?.toString() ?? '',
     is_prop: account?.is_prop ?? false,
     status: account?.status ?? 'Active' as AccountStatus,
     notes: account?.notes ?? '',
@@ -283,15 +282,12 @@ function AccountForm({ account, onClose, onSave, submitting }: {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Starting Balance</label>
-              <input type="number" step="0.01" className={inputCls} value={form.starting_balance} onChange={(e) => set('starting_balance', e.target.value)} placeholder="100000" />
-            </div>
-            <div>
-              <label className={labelCls}>Current Balance</label>
-              <input type="number" step="0.01" className={inputCls} value={form.current_balance} onChange={(e) => set('current_balance', e.target.value)} placeholder="100000" />
-            </div>
+          <div>
+            <label className={labelCls}>Starting Balance</label>
+            <input type="number" step="0.01" className={inputCls} value={form.starting_balance} onChange={(e) => set('starting_balance', e.target.value)} placeholder="100000" />
+          </div>
+          <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/20 text-xs text-light-secondary dark:text-dark-secondary">
+            Current balance is auto-calculated from starting balance + realized P&L of closed trades. No manual entry needed.
           </div>
           <div>
             <label className="flex items-center gap-3 cursor-pointer">

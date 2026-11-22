@@ -10,8 +10,10 @@ export function LandingPage({ onSignIn }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-light-canvas dark:bg-dark-canvas text-light-text dark:text-dark-text flex flex-col justify-between p-6">
       {/* Top Header Controls */}
-      <header className="flex justify-end max-w-5xl w-full mx-auto">
-        <ThemeToggle />
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-light-canvas/80 dark:bg-dark-canvas/80">
+        <div className="flex items-right gap-3 flex justify-end max-w-5xl w-full mx-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Main Welcome Card */}

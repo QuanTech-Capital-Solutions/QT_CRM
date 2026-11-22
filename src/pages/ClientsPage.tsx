@@ -11,7 +11,11 @@ const statusColors: Record<ClientStatus, string> = {
 
 type SortKey = 'company_name' | 'primary_contact' | 'email' | 'status' | 'created_at';
 
-export function ClientsPage() {
+interface ClientsPageProps {
+  onOpenProject: (projectId: string) => void;
+}
+
+export function ClientsPage({ onOpenProject }: ClientsPageProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,13 +217,18 @@ export function ClientsPage() {
             {clientProjects.length > 0 ? (
               <div className="space-y-2">
                 {clientProjects.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-light-canvas dark:bg-dark-canvas border border-light-border dark:border-dark-border">
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onOpenProject(p.id)}
+                    className="w-full flex items-center justify-between gap-3 p-3 text-left rounded-lg bg-light-canvas dark:bg-dark-canvas border border-light-border dark:border-dark-border hover:border-violet-500/50 hover:bg-violet-500/5 transition-colors"
+                  >
                     <div>
                       <div className="text-sm font-medium">{p.name}</div>
                       <div className="text-xs text-light-secondary dark:text-dark-secondary">{p.timeline || 'No timeline'}</div>
                     </div>
-                    <div className="text-sm font-semibold">{formatCurrency(p.cost_estimate)}</div>
-                  </div>
+                    <div className="text-sm font-semibold whitespace-nowrap">{formatCurrency(p.cost_estimate)}</div>
+                  </button>
                 ))}
               </div>
             ) : (

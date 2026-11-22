@@ -5,14 +5,26 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   * {
     box-sizing: border-box;
   }
-
   body {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  table, pre, code {
+    max-width: 100%;
+  }
+
+  /* Prevent horizontal overflow from wide content */
+  img, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
   }
 
   /* Scrollbar styling */
@@ -76,7 +88,19 @@
   }
 
   .input-field {
-    @apply w-full px-3 py-2.5 rounded-lg border text-sm transition-all duration-150 outline-none;
+    @apply w-full px-3 py-2.5 rounded-lg border text-base md:text-sm transition-all duration-150 outline-none;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 
   .btn-primary {

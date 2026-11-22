@@ -1,5 +1,7 @@
 export type ClientStatus = 'Active' | 'Prospect' | 'On Hold';
-export type ProjectStatus = 'Scoping' | 'Active' | 'On Hold' | 'Completed';
+export type ProjectStatus = 'Not Started' | 'In Progress' | 'Review' | 'Completed';
+
+export type TaskPriority = 'Low' | 'Medium' | 'High';
 export type InvoiceStatus = 'Draft' | 'Sent' | 'Paid' | 'Overdue';
 export type LedgerType = 'Income' | 'Expense';
 
@@ -31,6 +33,40 @@ export interface Project {
   status: ProjectStatus;
   cost_estimate: number;
   timeline: string | null;
+  deadline: string | null;
+  created_at: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  user_id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: TaskPriority;
+  is_completed: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export type CalendarEventType = 'meeting' | 'task' | 'deadline' | 'custom';
+
+export interface CalendarEvent {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  event_type: CalendarEventType;
+  start_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  all_day: boolean;
+  client_name: string | null;
+  project_id: string | null;
+  task_id: string | null;
+  color: string | null;
+  is_completed: boolean;
   created_at: string;
 }
 

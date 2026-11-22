@@ -9,6 +9,7 @@ import { ClientsPage } from './pages/ClientsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { FinancePage } from './pages/FinancePage';
 import { TradingPage } from './pages/TradingPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { AdminProfilePage } from './pages/AdminProfilePage';
 import Logo from './components/fulllogo.png';
 
@@ -18,6 +19,7 @@ function AppContent() {
   const { session, user, loading, signOut } = useAuth();
   const [appState, setAppState] = useState<AppState>('landing');
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
 
   // If a Supabase session exists, force the app view
   const effectiveState: AppState = session ? 'app' : appState;
@@ -53,10 +55,23 @@ function AppContent() {
       userEmail={user?.email ?? ''}
     >
       {currentPage === 'dashboard' && <DashboardPage />}
-      {currentPage === 'clients' && <ClientsPage />}
-      {currentPage === 'projects' && <ProjectsPage />}
+      {currentPage === 'clients' && (
+        <ClientsPage
+          onOpenProject={(projectId) => {
+            setPendingProjectId(projectId);
+            setCurrentPage('projects');
+          }}
+        />
+      )}
+      {currentPage === 'projects' && (
+        <ProjectsPage
+          openProjectId={pendingProjectId}
+          onProjectOpened={() => setPendingProjectId(null)}
+        />
+      )}
       {currentPage === 'finance' && <FinancePage />}
       {currentPage === 'trading' && <TradingPage />}
+      {currentPage === 'schedule' && <CalendarPage />}
       {currentPage === 'admin' && <AdminProfilePage />}
     </AppShell>
   );

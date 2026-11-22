@@ -119,7 +119,6 @@ export function AdminProfilePage() {
 
   return (
     <div className="max-w-3xl">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center">
           <Shield size={22} className="text-violet-600 dark:text-violet-400" />

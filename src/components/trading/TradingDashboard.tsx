@@ -1,7 +1,6 @@
 import { TrendingUp, TrendingDown, Wallet, Target, Award, Flame, ArrowUpRight, ArrowDownRight, Activity, Zap } from 'lucide-react';
 import type { Trade, TradingAccount } from '../../lib/types';
-import { calcPortfolioMetrics, calcAccountMetrics, formatPnl, formatPnlShort, formatPct, formatR } from '../../lib/tradingUtils';
-import { formatCurrency } from '../../lib/types';
+import { calcPortfolioMetrics, calcAccountMetrics, calcAccountCurrentBalance, formatPnl, formatPnlShort, formatPct, formatR, formatCurrencyByCode } from '../../lib/tradingUtils';
 
 interface DashboardProps {
   accounts: TradingAccount[];
@@ -12,11 +11,13 @@ interface DashboardProps {
 
 export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrades }: DashboardProps) {
   const m = calcPortfolioMetrics(trades, accounts);
+  const activeAccounts = accounts.filter((a) => a.status !== 'Closed');
+  const portfolioCurrency = activeAccounts[0]?.currency ?? 'USD';
 
   const statCards = [
     {
       label: 'Total Portfolio Balance',
-      value: formatCurrency(m.totalBalance),
+      value: formatCurrencyByCode(m.totalBalance, portfolioCurrency),
       sub: `${formatPct(m.totalPnlPct)} all-time`,
       icon: Wallet,
       iconBg: 'bg-violet-500/10',
@@ -25,7 +26,7 @@ export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrad
     },
     {
       label: 'Net P&L',
-      value: formatPnl(m.totalPnl),
+      value: formatPnl(m.totalPnl, portfolioCurrency),
       sub: `${m.closedTrades} closed trades`,
       icon: m.totalPnl >= 0 ? TrendingUp : TrendingDown,
       iconBg: m.totalPnl >= 0 ? 'bg-emerald-500/10' : 'bg-rose-500/10',
@@ -112,16 +113,17 @@ export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrad
         <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold">Managed Accounts</h2>
-            <span className="text-xs text-light-secondary dark:text-dark-secondary">{accounts.length} accounts</span>
+            <span className="text-xs text-light-secondary dark:text-dark-secondary">{activeAccounts.length} active</span>
           </div>
           <div className="space-y-3">
-            {accounts.length === 0 ? (
+            {activeAccounts.length === 0 ? (
               <div className="text-center py-8 text-sm text-light-secondary dark:text-dark-secondary">
                 <Wallet size={28} className="mx-auto mb-2 opacity-40" />
-                No accounts yet. Add one to start tracking.
+                No active accounts. Add one to start tracking.
               </div>
-            ) : accounts.map((acct) => {
+            ) : activeAccounts.map((acct) => {
               const am = calcAccountMetrics(acct, trades);
+              const computedBalance = calcAccountCurrentBalance(acct, trades);
               return (
                 <button
                   key={acct.id}
@@ -135,12 +137,12 @@ export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrad
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{acct.name}</div>
                       <div className="text-xs text-light-secondary dark:text-dark-secondary">
-                        {acct.broker || 'No broker'} · {am.tradeCount} trades · {am.openCount} open
+                        {acct.broker || 'No broker'} · {acct.currency} · {am.tradeCount} trades
                       </div>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-semibold">{formatCurrency(acct.current_balance)}</div>
+                    <div className="text-sm font-semibold">{formatCurrencyByCode(computedBalance, acct.currency)}</div>
                     <div className={`text-xs font-medium ${am.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {formatPct(am.pnlPct)}
                     </div>
@@ -163,7 +165,10 @@ export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrad
                 <Activity size={28} className="mx-auto mb-2 opacity-40" />
                 No trades yet.
               </div>
-            ) : recentTrades.map((t) => (
+            ) : recentTrades.map((t) => {
+              const acct = activeAccounts.find((a) => a.id === t.account_id) ?? accounts.find((a) => a.id === t.account_id);
+              const cur = acct?.currency ?? 'USD';
+              return (
               <div key={t.id} className="flex items-center justify-between p-2.5 rounded-lg bg-light-canvas dark:bg-dark-canvas border border-light-border dark:border-dark-border">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${
@@ -185,12 +190,13 @@ export function TradingDashboard({ accounts, trades, onSelectAccount, onGoToTrad
                     <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Open</span>
                   ) : (
                     <div className={`text-sm font-semibold ${t.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                      {formatPnlShort(t.pnl)}
+                      {formatPnlShort(t.pnl, cur)}
                     </div>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

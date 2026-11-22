@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, FileText, CheckCircle2, ArrowUpRight, ArrowDownRight, Banknote, TrendingUp, TrendingDown, Eye, Printer, Settings, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, FileText, CheckCircle2, ArrowUpRight, ArrowDownRight, Banknote, TrendingUp, TrendingDown, Eye, Printer, Settings, Pencil, Trash2, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency, formatDate, type Invoice, type LedgerEntry, type Client, type Project, type CompanySettings, type InvoiceStatus, type LedgerType } from '../lib/types';
 import { InvoiceCreator } from '../components/invoice/InvoiceCreator';
@@ -30,6 +30,8 @@ export function FinancePage() {
   const [confirmDeleteInvoice, setConfirmDeleteInvoice] = useState<Invoice | null>(null);
   const [ledgerModal, setLedgerModal] = useState<{ mode: 'create' | 'edit'; entry: LedgerEntry | null } | null>(null);
   const [confirmDeleteLedger, setConfirmDeleteLedger] = useState<LedgerEntry | null>(null);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [expandedLedgerId, setExpandedLedgerId] = useState<string | null>(null);
 
   const fetchData = async () => {
     const [{ data: inv }, { data: led }, { data: comp }] = await Promise.all([
@@ -245,14 +247,73 @@ export function FinancePage() {
       {/* Invoices tab */}
       {tab === 'invoices' && (
         <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="divide-y divide-light-border dark:divide-dark-border md:hidden">
+            {invoices.map((inv) => {
+              const isExpanded = expandedInvoiceId === inv.id;
+              return (
+                <div key={inv.id}>
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                    className="w-full p-4 text-left hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">{inv.invoice_number}</div>
+                        <div className="text-xs text-light-secondary dark:text-dark-secondary truncate mt-1">{inv.client_name}</div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="text-sm font-semibold whitespace-nowrap">{formatCurrency(inv.amount)}</div>
+                          <span className={`inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${invoiceStatusColors[inv.status]}`}>{inv.status}</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-light-secondary dark:text-dark-secondary transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 animate-fade-in">
+                      <div className="grid grid-cols-2 gap-3 rounded-lg bg-light-canvas dark:bg-dark-canvas p-3 text-xs">
+                        <div>
+                          <div className="text-light-secondary dark:text-dark-secondary">Project</div>
+                          <div className="font-medium mt-1 truncate">{inv.project_name || '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-light-secondary dark:text-dark-secondary">Due date</div>
+                          <div className="font-medium mt-1">{inv.due_date ? formatDate(inv.due_date) : '—'}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button onClick={() => setViewInvoice(inv)} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-violet-600 dark:text-violet-400">
+                          <Eye size={14} /> View
+                        </button>
+                        <button onClick={() => { setEditingInvoice(inv); setShowCreator(true); }} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-violet-600 dark:text-violet-400">
+                          <Pencil size={14} /> Edit
+                        </button>
+                        {inv.status !== 'Paid' && (
+                          <button onClick={() => markAsPaid(inv.id)} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={14} /> Mark Paid
+                          </button>
+                        )}
+                        <button onClick={() => setConfirmDeleteInvoice(inv)} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-rose-600 dark:text-rose-400">
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-light-border dark:border-dark-border">
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Invoice #</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary hidden md:table-cell">Client</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary hidden lg:table-cell">Project</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Total</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary whitespace-nowrap min-w-[120px]">Total</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary hidden sm:table-cell">Due Date</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-light-secondary dark:text-dark-secondary">Actions</th>
@@ -271,7 +332,7 @@ export function FinancePage() {
                     </td>
                     <td className="px-4 py-3 text-sm hidden md:table-cell">{inv.client_name}</td>
                     <td className="px-4 py-3 text-sm hidden lg:table-cell text-light-secondary dark:text-dark-secondary">{inv.project_name || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-semibold">{formatCurrency(inv.amount)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap min-w-[120px]">{formatCurrency(inv.amount)}</td>
                     <td className="px-4 py-3 text-sm hidden sm:table-cell text-light-secondary dark:text-dark-secondary">
                       {inv.due_date ? formatDate(inv.due_date) : '—'}
                     </td>
@@ -333,7 +394,60 @@ export function FinancePage() {
       {/* Ledger tab */}
       {tab === 'ledger' && (
         <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="divide-y divide-light-border dark:divide-dark-border md:hidden">
+            {ledger.map((entry) => {
+              const isExpanded = expandedLedgerId === entry.id;
+              const isIncome = entry.type === 'Income';
+              return (
+                <div key={entry.id}>
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    onClick={() => setExpandedLedgerId(isExpanded ? null : entry.id)}
+                    className="w-full p-4 text-left hover:bg-light-canvas dark:hover:bg-dark-canvas transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isIncome ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
+                            {isIncome
+                              ? <ArrowDownRight size={14} className="text-emerald-600 dark:text-emerald-400" />
+                              : <ArrowUpRight size={14} className="text-rose-600 dark:text-rose-400" />}
+                          </span>
+                          <span className={`text-xs font-medium ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{entry.type}</span>
+                        </div>
+                        <div className="text-sm font-medium truncate mt-2">{entry.category}</div>
+                        <div className="text-xs text-light-secondary dark:text-dark-secondary mt-1">{formatDate(entry.date)}</div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`text-sm font-semibold whitespace-nowrap ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          {isIncome ? '+' : '-'}{formatCurrency(entry.amount)}
+                        </span>
+                        <ChevronDown size={16} className={`text-light-secondary dark:text-dark-secondary transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 animate-fade-in">
+                      <div className="rounded-lg bg-light-canvas dark:bg-dark-canvas p-3 text-xs">
+                        <div className="text-light-secondary dark:text-dark-secondary">Description</div>
+                        <div className="font-medium mt-1 break-words">{entry.description || '—'}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button onClick={() => setLedgerModal({ mode: 'edit', entry })} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-violet-600 dark:text-violet-400">
+                          <Pencil size={14} /> Edit
+                        </button>
+                        <button onClick={() => setConfirmDeleteLedger(entry)} className="inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-lg border border-light-border dark:border-dark-border text-xs font-medium text-rose-600 dark:text-rose-400">
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-light-border dark:border-dark-border">
