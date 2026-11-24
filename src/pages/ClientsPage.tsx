@@ -139,7 +139,7 @@ export function ClientsPage({ onOpenProject }: ClientsPageProps) {
           New Client
         </button>
       </div>
-    
+
       {/* Search */}
       <div className="relative mb-4">
         <input

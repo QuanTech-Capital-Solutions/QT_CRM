@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
-import { Plus, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid, Check, Clock, X, Flag, Users as UsersIcon, Briefcase, Trash2, Pencil } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid, Check, Clock, Flag, Users as UsersIcon, Briefcase, Trash2, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { type Project, type Client, type ProjectTask, type CalendarEvent, type CalendarEventType } from '../lib/types';
+import { type Project, type Client, type ProjectTask, type CalendarEvent, type CalendarEventType, type TaskPriority } from '../lib/types';
 import { Sheet } from '../components/Sheet';
 import {
-  toISODate, parseISODate, isSameDay, addDays, startOfWeek, startOfMonth, endOfMonth,
+  toISODate, parseISODate, isSameDay, addDays, startOfWeek, startOfMonth,
   weekdayShort, weekdayMin, monthNames,
-  eventTypeColors, projectColor, urgencyToneColors, urgencyLabel, daysFromToday,
+  eventTypeColors, projectColor, TASK_PRIORITIES,
 } from '../lib/dateUtils';
 
 type CalendarView = 'agenda' | 'month';
@@ -36,6 +36,7 @@ export function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CalendarEvent | null>(null);
 
   const fetchData = async () => {
@@ -127,12 +128,28 @@ export function CalendarPage() {
 
   const openEdit = (ev: CalendarEvent) => {
     setEditingEvent(ev);
+    setEditingTask(null);
     setSelectedDate(parseISODate(ev.start_date));
     setShowForm(true);
   };
 
+  const openTaskEdit = (task: ProjectTask) => {
+    setEditingTask(task);
+  };
+
+  const editAgendaItem = (item: AgendaItem) => {
+    if (item.eventId) {
+      const event = events.find((candidate) => candidate.id === item.eventId);
+      if (event) openEdit(event);
+    } else if (item.taskId) {
+      const task = tasks.find((candidate) => candidate.id === item.taskId);
+      if (task) openTaskEdit(task);
+    }
+  };
+
   const openAdd = (d: Date) => {
     setEditingEvent(null);
+    setEditingTask(null);
     setSelectedDate(d);
     setShowForm(true);
   };
@@ -148,7 +165,6 @@ export function CalendarPage() {
 
   // Month grid
   const monthStart = startOfMonth(anchor);
-  const monthEnd = endOfMonth(anchor);
   const gridStart = startOfWeek(monthStart);
   const monthGrid = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
 
@@ -229,7 +245,17 @@ export function CalendarPage() {
 
       {/* Content */}
       {view === 'agenda' ? (
-        <AgendaView days={agendaDays} itemsOn={itemsOn} onToggle={toggleItem} onEdit={openEdit} onRequestDelete={(ev) => setConfirmDelete(ev)} onAddDay={(d) => openAdd(d)} />
+        <AgendaView
+          days={agendaDays}
+          itemsOn={itemsOn}
+          onToggle={toggleItem}
+          onEdit={editAgendaItem}
+          onRequestDelete={(item) => {
+            const event = events.find((candidate) => candidate.id === item.eventId);
+            if (event) setConfirmDelete(event);
+          }}
+          onAddDay={(d) => openAdd(d)}
+        />
       ) : (
         <MonthView grid={monthGrid} anchor={anchor} itemsOn={itemsOn} onDayClick={(d) => { setAnchor(d); openAdd(d); }} onToggle={toggleItem} />
       )}
@@ -254,6 +280,14 @@ export function CalendarPage() {
         />
       )}
 
+      {editingTask && (
+        <TaskScheduleForm
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSaved={() => { setEditingTask(null); fetchData(); }}
+        />
+      )}
+
       {confirmDelete && (
         <DeleteEventConfirm event={confirmDelete} onCancel={() => setConfirmDelete(null)} onConfirm={() => deleteEvent(confirmDelete.id)} />
       )}
@@ -267,8 +301,8 @@ function AgendaView({ days, itemsOn, onToggle, onEdit, onRequestDelete, onAddDay
   days: Date[];
   itemsOn: (d: Date) => AgendaItem[];
   onToggle: (item: AgendaItem) => void;
-  onEdit: (ev: CalendarEvent) => void;
-  onRequestDelete: (ev: CalendarEvent) => void;
+  onEdit: (item: AgendaItem) => void;
+  onRequestDelete: (item: AgendaItem) => void;
   onAddDay: (d: Date) => void;
 }) {
   const today = new Date();
@@ -299,8 +333,8 @@ function AgendaView({ days, itemsOn, onToggle, onEdit, onRequestDelete, onAddDay
                     key={item.id}
                     item={item}
                     onToggle={() => onToggle(item)}
-                    onEdit={item.eventId ? () => onEdit(events.find((e) => e.id === item.eventId)!) : undefined}
-                    onRequestDelete={item.eventId ? () => onRequestDelete(events.find((e) => e.id === item.eventId)!) : undefined}
+                    onEdit={item.eventId || item.taskId ? () => onEdit(item) : undefined}
+                    onRequestDelete={item.eventId ? () => onRequestDelete(item) : undefined}
                   />
                 ))}
               </div>
@@ -420,6 +454,89 @@ function MonthView({ grid, anchor, itemsOn, onDayClick, onToggle }: {
 
 /* ── Event Form ────────────────────────────── */
 
+function TaskScheduleForm({ task, onClose, onSaved }: {
+  task: ProjectTask;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description ?? '',
+    due_date: task.due_date ?? '',
+    priority: task.priority,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) { setError('Title is required'); return; }
+    setSubmitting(true);
+    setError('');
+    const { error: updateError } = await supabase.from('project_tasks').update({
+      title: form.title.trim(),
+      description: form.description || null,
+      due_date: form.due_date || null,
+      priority: form.priority,
+    }).eq('id', task.id);
+    setSubmitting(false);
+    if (updateError) { setError(updateError.message); return; }
+    onSaved();
+  };
+
+  const footer = (
+    <div className="flex gap-3">
+      <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center border-light-border dark:border-dark-border">Cancel</button>
+      <button onClick={handleSubmit} disabled={submitting} className="btn-primary flex-1 justify-center bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-60">
+        {submitting ? 'Saving…' : 'Save Changes'}
+      </button>
+    </div>
+  );
+
+  return (
+    <Sheet open onClose={onClose} title="Edit Scheduled Task" footer={footer}>
+      <div className="space-y-4">
+        {error && <div className="p-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm">{error}</div>}
+        <div>
+          <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Title</label>
+          <input
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Description (optional)</label>
+          <textarea
+            rows={2}
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border resize-none"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Due date</label>
+          <input
+            type="date"
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border"
+            value={form.due_date}
+            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Priority</label>
+          <select
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border"
+            value={form.priority}
+            onChange={(e) => setForm({ ...form, priority: e.target.value as TaskPriority })}
+          >
+            {TASK_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+          </select>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 function EventForm({ event, date, projects, clients, onClose, onSaved }: {
   event: CalendarEvent | null;
   date: Date;
@@ -441,6 +558,7 @@ function EventForm({ event, date, projects, clients, onClose, onSaved }: {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const clientProjects = projects.filter((project) => !form.client_name || project.client_name === form.client_name);
 
   const handleSubmit = async () => {
     if (!form.title.trim()) { setError('Title is required'); return; }
@@ -547,7 +665,20 @@ function EventForm({ event, date, projects, clients, onClose, onSaved }: {
 
         <div>
           <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Link to Client (optional)</label>
-          <select className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })}>
+          <select
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border"
+            value={form.client_name}
+            onChange={(e) => {
+              const clientName = e.target.value;
+              setForm((current) => ({
+                ...current,
+                client_name: clientName,
+                project_id: !clientName || projects.find((project) => project.id === current.project_id)?.client_name === clientName
+                  ? current.project_id
+                  : '',
+              }));
+            }}
+          >
             <option value="">None</option>
             {clients.map((c) => <option key={c.id} value={c.company_name}>{c.company_name}</option>)}
           </select>
@@ -555,9 +686,13 @@ function EventForm({ event, date, projects, clients, onClose, onSaved }: {
 
         <div>
           <label className="block text-xs font-medium text-light-secondary dark:text-dark-secondary mb-1.5">Link to Project (optional)</label>
-          <select className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border" value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })}>
-            <option value="">None</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <select
+            className="input-field bg-light-canvas dark:bg-dark-canvas border-light-border dark:border-dark-border"
+            value={form.project_id}
+            onChange={(e) => setForm({ ...form, project_id: e.target.value })}
+          >
+            <option value="">{clientProjects.length ? 'None' : form.client_name ? 'No projects linked to this client' : 'No projects available'}</option>
+            {clientProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
           </select>
         </div>
       </div>

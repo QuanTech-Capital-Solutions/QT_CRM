@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Users, Briefcase, FileText, DollarSign, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Circle, CalendarClock, AlertTriangle, ListChecks } from 'lucide-react';
+import { Users, Briefcase, FileText, DollarSign, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Circle, CalendarClock, AlertTriangle, CalendarDays } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatCurrency, formatDate, type Client, type Project, type Invoice, type LedgerEntry, type ProjectTask } from '../lib/types';
-import { statusColors, urgencyLabel, urgencyToneColors, daysFromToday, computeProgress, toISODate } from '../lib/dateUtils';
+import { formatCurrency, formatDate, type Client, type Project, type Invoice, type LedgerEntry, type ProjectTask, type CalendarEvent } from '../lib/types';
+import { statusColors, urgencyLabel, urgencyToneColors, daysFromToday, computeProgress, toISODate, startOfWeek, addDays } from '../lib/dateUtils';
 
 export function DashboardPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -10,22 +10,25 @@ export function DashboardPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [{ data: c }, { data: p }, { data: i }, { data: l }, { data: t }] = await Promise.all([
+      const [{ data: c }, { data: p }, { data: i }, { data: l }, { data: t }, { data: e }] = await Promise.all([
         supabase.from('clients').select('*').order('created_at', { ascending: false }),
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
         supabase.from('invoices').select('*').order('created_at', { ascending: false }),
         supabase.from('ledger_entries').select('*').order('date', { ascending: false }),
         supabase.from('project_tasks').select('*').order('due_date', { ascending: true }),
+        supabase.from('calendar_events').select('*').order('start_date', { ascending: true }),
       ]);
       setClients(c ?? []);
       setProjects(p ?? []);
       setInvoices(i ?? []);
       setLedger(l ?? []);
       setTasks(t ?? []);
+      setCalendarEvents(e ?? []);
       setLoading(false);
     })();
   }, []);
@@ -65,11 +68,6 @@ export function DashboardPage() {
     .slice(0, 5);
 
   const overdueTasks = tasks.filter((t) => !t.is_completed && t.due_date && daysFromToday(t.due_date)! < 0);
-  const dueSoonTasks = tasks
-    .filter((t) => !t.is_completed && t.due_date && daysFromToday(t.due_date)! >= 0 && daysFromToday(t.due_date)! <= 7)
-    .sort((a, b) => (daysFromToday(a.due_date)! - daysFromToday(b.due_date)!))
-    .slice(0, 6);
-
   const recentActivity = ledger.slice(0, 5);
   const sortedProjects = [...projects].sort((a, b) => {
     const statusRank = (status: Project['status']) =>
@@ -89,6 +87,48 @@ export function DashboardPage() {
   });
   const dashboardProjects = sortedProjects.slice(0, 8);
   const todayISO = toISODate(new Date());
+  const weekStart = startOfWeek(new Date());
+  const weekStartISO = toISODate(weekStart);
+  const weekEndISO = toISODate(addDays(weekStart, 6));
+  const upcomingWeekEndISO = toISODate(addDays(new Date(), 7));
+  const scheduleItems = [
+    ...calendarEvents
+      .filter((event) => event.start_date >= weekStartISO && event.start_date <= weekEndISO)
+      .map((event) => ({
+        id: `event-${event.id}`,
+        title: event.title,
+        date: event.start_date,
+        time: event.all_day ? null : event.start_time,
+        kind: event.event_type === 'meeting' ? 'Meeting' : event.event_type === 'task' ? 'Task' : event.event_type === 'deadline' ? 'Deadline' : 'Event',
+        subtitle: event.client_name ?? undefined,
+        isCompleted: event.is_completed,
+      })),
+    ...tasks
+      .filter((task) => task.due_date && (
+        (task.due_date >= weekStartISO && task.due_date <= weekEndISO) ||
+        (!task.is_completed && task.due_date >= todayISO && task.due_date <= upcomingWeekEndISO)
+      ))
+      .map((task) => ({
+        id: `task-${task.id}`,
+        title: task.title,
+        date: task.due_date!,
+        time: null,
+        kind: 'Task due',
+        subtitle: projects.find((project) => project.id === task.project_id)?.name,
+        isCompleted: task.is_completed,
+      })),
+    ...projects
+      .filter((project) => project.deadline && project.status !== 'Completed' && project.deadline >= weekStartISO && project.deadline <= weekEndISO)
+      .map((project) => ({
+        id: `deadline-${project.id}`,
+        title: `Deadline: ${project.name}`,
+        date: project.deadline!,
+        time: null,
+        kind: 'Project deadline',
+        subtitle: project.client_name,
+        isCompleted: false,
+      })),
+  ].sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? '') || a.title.localeCompare(b.title));
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -157,7 +197,7 @@ export function DashboardPage() {
               <div className="text-sm text-light-secondary dark:text-dark-secondary py-4">No upcoming deadlines.</div>
             ) : (
               <div className="space-y-2">
-                {upcomingDeadlines.map(({ project, days }) => (
+                {upcomingDeadlines.map(({ project }) => (
                   <div key={project.id} className="flex items-center gap-3 py-2">
                     <Briefcase size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -175,34 +215,33 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Due this week + recent activity */}
+      {/* Schedule this week + recent activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Tasks due this week */}
+        {/* Schedule for this week */}
         <div className="card border-light-border dark:border-dark-card bg-light-card dark:bg-dark-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ListChecks size={18} className="text-violet-600 dark:text-violet-400" />
-              <h2 className="text-base font-semibold">Tasks Due This Week</h2>
+              <CalendarDays size={18} className="text-violet-600 dark:text-violet-400" />
+              <h2 className="text-base font-semibold">Schedule for this week</h2>
             </div>
-            <span className="text-xs text-light-secondary dark:text-dark-secondary">{dueSoonTasks.length}</span>
+            <span className="text-xs text-light-secondary dark:text-dark-secondary">{scheduleItems.length}</span>
           </div>
-          {dueSoonTasks.length === 0 ? (
-            <div className="text-center py-8 text-sm text-light-secondary dark:text-dark-secondary">No tasks due in the next 7 days.</div>
+          {scheduleItems.length === 0 ? (
+            <div className="text-center py-8 text-sm text-light-secondary dark:text-dark-secondary">Nothing scheduled this week.</div>
           ) : (
             <div className="space-y-1">
-              {dueSoonTasks.map((t) => {
-                const proj = projects.find((p) => p.id === t.project_id);
-                const urg = urgencyLabel(t.due_date);
+              {scheduleItems.map((item) => {
                 return (
-                  <div key={t.id} className="flex items-center gap-3 py-3 border-b border-light-border dark:border-dark-border last:border-0">
-                    <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                      <Circle size={14} className="text-violet-600 dark:text-violet-400" />
+                  <div key={item.id} className="flex items-center gap-3 py-3 border-b border-light-border dark:border-dark-border last:border-0">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${item.isCompleted ? 'bg-emerald-500/10' : 'bg-violet-500/10'}`}>
+                      {item.isCompleted ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Circle size={14} className="text-violet-600 dark:text-violet-400" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{t.title}</div>
-                      <div className="text-xs text-light-secondary dark:text-dark-secondary truncate">{proj?.name ?? '—'}</div>
+                      <div className={`text-sm font-medium truncate ${item.isCompleted ? 'line-through text-light-secondary dark:text-dark-secondary' : ''}`}>{item.title}</div>
+                      <div className="text-xs text-light-secondary dark:text-dark-secondary truncate">
+                        {formatDate(item.date)}{item.time ? ` · ${item.time.slice(0, 5)}` : ''} · {item.kind}{item.subtitle ? ` · ${item.subtitle}` : ''}
+                      </div>
                     </div>
-                    <span className={`text-xs font-medium flex-shrink-0 ${urgencyToneColors[urg.tone]}`}>{urg.text}</span>
                   </div>
                 );
               })}
